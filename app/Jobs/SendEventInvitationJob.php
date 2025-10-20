@@ -43,6 +43,19 @@ class SendEventInvitationJob implements ShouldQueue
      */
     public function handle()
     {
+        // Fetch the latest ticket data from database to ensure e_ticket_url is available
+        if (isset($this->details['order_id'])) {
+            $ticketSale = \App\Models\TicketSale::where('order_id', $this->details['order_id'])->first();
+            
+            if ($ticketSale && $ticketSale->e_ticket_url) {
+                // Update details with the latest e_ticket_url from database
+                $this->details['e_ticket_url'] = $ticketSale->e_ticket_url;
+                \Illuminate\Support\Facades\Log::info("SendEventInvitationJob: Retrieved e_ticket_url from database for Order ID: " . $this->details['order_id']);
+            } else {
+                \Illuminate\Support\Facades\Log::warning("SendEventInvitationJob: e_ticket_url not yet available for Order ID: " . $this->details['order_id']);
+            }
+        }
+        
         $email = new EventInvitationMail($this->details);
         if(isset($this->details['cc_email'])) {
             Mail::to([$this->details['email']])->cc([$this->details['cc_email']])->send($email);
